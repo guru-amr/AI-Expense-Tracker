@@ -1,0 +1,657 @@
+{
+  "name": "WhatsApp Expense Tracker with AI",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "messages"
+        ],
+        "options": {}
+      },
+      "id": "fb45152d-26da-4194-ba65-cb60a1387a08",
+      "name": "WhatsApp Trigger",
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [
+        48,
+        192
+      ],
+      "webhookId": "30d4b14d-84be-4df1-b059-4648d3a9f165",
+      "credentials": {
+        "whatsAppTriggerApi": {
+          "id": "dgKeflWtrUxazLgU",
+          "name": "WhatsApp OAuth account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Today's date is: {{ $now.format('yyyy-MM-dd') }}\nuser message: {{$json.messages[0].text.body }}\nYour task:\nAnalyze the user message and return ONLY valid JSON.\n\nExtract these fields:\n* user_message\n* isExpense\n* amount\n* location\n* category\n* date\n\nRules:\n\n1. If the user is REPORTING an expense\n   Examples:\n\n* \"I spent 200 at KFC\"\n* \"Paid 500 for lunch\"\n* \"Uber cost me 300\"\n\nThen:\n\n* set \"isExpense\" to true\n* extract all possible fields\n\n2. If the user is ASKING about expenses\n   Examples:\n* \"How much did I spend on lunch?\"\n* \"Show my food expenses\"\n* \"What was my last expense?\"\n\nThen:\n\n* set \"isExpense\" to false\n* amount = null\n* location = null\n* category = null\n* date = null\n\n3. If no date is mentioned in an expense entry:\n\n* use today's date\n\n4. If some fields are missing:\n\n* use null\n\n5. Return ONLY raw JSON\n\n* no markdown\n* no explanations\n* no extra text\n\n\nExample 1 input:\nI spent 200 at KFC today\n\nExample 1 output:\n{\n\"user_message\": \"I spent 200 at KFC today\",\n\"isExpense\": true,\n\"amount\": 200,\n\"location\": \"KFC\",\n\"category\": \"Food\",\n\"date\": \"{{ $now.format('yyyy-MM-dd') }}\"\n}\n\nExample 2 input:\nHow much did I spend on lunch?\n\nExample 2 output:\n{\n\"user_message\": \"How much did I spend on lunch?\",\n\"isExpense\": false,\n\"amount\": null,\n\"location\": null,\n\"category\": null,\n\"date\": null\n}\n",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are an expense tracking assistant. When users tell you about an expense (e.g., \"I spent $50 at Starbucks\"), extract the usermessage ,amount, location, category, and date. Set isExpense to true. If the user is asking a question about their expenses (e.g., \"how much did I spend this week?\"), set isExpense to false and leave other fields empty. Always use today's date if not specified."
+        }
+      },
+      "id": "6274a3f7-9ced-4de7-8cb5-b1ee38270d10",
+      "name": "Expense Tracker Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1376,
+        96
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"user message\": \"How much i spent for lunch\",\n  \"isExpense\": true,\n  \"amount\": 50,\n  \"location\": \"Starbucks\",\n  \"category\": \"Food & Dining\",\n  \"date\": \"2024-01-15\"\n}"
+      },
+      "id": "2322ca34-de09-4829-b177-278b95375f1d",
+      "name": "Expense Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1536,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.output.isExpense }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              },
+              "id": "a1f914bf-f3cb-42f7-a602-88e813c2c92f"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "23afa7f9-ac48-48f0-868c-ad5067811e7b",
+      "name": "Is This an Expense Entry?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1744,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1IHcOB38EPWhAwM-SjzTpsZFWHgrtFIFXUH8tDkGw5OQ",
+          "mode": "list",
+          "cachedResultName": "AI_expense",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1IHcOB38EPWhAwM-SjzTpsZFWHgrtFIFXUH8tDkGw5OQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1IHcOB38EPWhAwM-SjzTpsZFWHgrtFIFXUH8tDkGw5OQ/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "isExpense": "={{ $json.output.isExpense }}",
+            "amount": "={{ $json.output.amount }}",
+            "location": "={{ $json.output.location }}",
+            "category": "={{ $json.output.category }}",
+            "date": "={{ $json.output.date }}"
+          },
+          "matchingColumns": [
+            "date"
+          ],
+          "schema": [
+            {
+              "id": "isExpense",
+              "displayName": "isExpense",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "amount",
+              "displayName": "amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "location",
+              "displayName": "location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "a60da510-51c9-4962-9e02-5356bbd6235a",
+      "name": "Save Expense to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2032,
+        32
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "kbMcnT2FjwkdGtgx",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "1089425260920609",
+        "recipientPhoneNumber": "={{ $('WhatsApp Trigger').item.json.contacts[0].wa_id }}",
+        "textBody": "=✅ Expense saved: ₹{{ $(\"Save Expense to Sheet\").item.json.amount }} at {{ $(\"Save Expense to Sheet\").item.json.location }} ({{ $(\"Save Expense to Sheet\").item.json.category }})",
+        "additionalFields": {}
+      },
+      "id": "424147b7-f3ec-43ed-ae9c-c9ffeb246d1f",
+      "name": "Send Confirmation",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        2320,
+        32
+      ],
+      "webhookId": "12e9fdc7-2c21-4160-94a1-22a508f2a961",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "9f40P4OVnPqu1o9f",
+          "name": "WhatsApp account 5"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expense analysis assistant. Use the \"Read Expenses Tool\" to retrieve expense data from the Google Sheet and answer user questions about their spending. You can calculate totals, analyze spending by category or location, compare time periods, and provide insights. Always read the data first before answering.\n\nuser message:{{ $json.messages[0].text.body }}\nor \nuser message:{{ $json.content.parts[0].text }}",
+        "options": {
+          "systemMessage": "You are an expense analysis assistant. Use the \"Read Expenses Tool\" to retrieve expense data from the Google Sheet and answer user questions about their spending. You can calculate totals, analyze spending by category or location, compare time periods, and provide insights. Always read the data first before answering."
+        }
+      },
+      "id": "97fe96c4-28cb-40f5-bd26-92cc7af294a6",
+      "name": "Expense Query Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1968,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1IHcOB38EPWhAwM-SjzTpsZFWHgrtFIFXUH8tDkGw5OQ",
+          "mode": "list",
+          "cachedResultName": "AI_expense",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1IHcOB38EPWhAwM-SjzTpsZFWHgrtFIFXUH8tDkGw5OQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1IHcOB38EPWhAwM-SjzTpsZFWHgrtFIFXUH8tDkGw5OQ/edit#gid=0"
+        },
+        "options": {}
+      },
+      "id": "59c9bde9-4256-497b-88cf-ac18c6946183",
+      "name": "Read Expenses Tool",
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        2048,
+        560
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "kbMcnT2FjwkdGtgx",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "1089425260920609",
+        "recipientPhoneNumber": "+91 9360203091",
+        "textBody": "={{ $json.output }}",
+        "additionalFields": {}
+      },
+      "id": "01120cfd-7f00-4885-988b-44096ceda762",
+      "name": "Send Query Response",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        2320,
+        336
+      ],
+      "webhookId": "223f3ea5-1d1f-4a04-89eb-5b9b65cab5f9",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "9f40P4OVnPqu1o9f",
+          "name": "WhatsApp account 5"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "b7e498e8-858c-4aee-b1de-efcaf4d5406d",
+                    "leftValue": "={{ $json.messages[0].type }}",
+                    "rightValue": "text",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "73db6b0d-3a55-458d-809a-792d22d7a5a1",
+                    "leftValue": "={{ $json.messages[0].type }}",
+                    "rightValue": "audio",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a0aa645b-1de8-4110-9f8b-7973ac30d01e",
+      "name": "Check Message Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        272,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "media",
+        "operation": "mediaUrlGet",
+        "mediaGetId": "={{ $json.messages[0].audio.id }}"
+      },
+      "id": "f2f27d86-c7d2-4e6b-b514-48bbce99127b",
+      "name": "Get Audio URL",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        496,
+        256
+      ],
+      "webhookId": "d99240b1-c149-491f-a083-f3fc566dcc0d",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "9f40P4OVnPqu1o9f",
+          "name": "WhatsApp account 5"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "whatsAppApi",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "57b9f89a-3d16-4e4f-8b9e-faff7f1c16cb",
+      "name": "Download Audio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        720,
+        256
+      ],
+      "credentials": {
+        "whatsAppApi": {
+          "id": "9f40P4OVnPqu1o9f",
+          "name": "WhatsApp account 5"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4f200cbf-59dc-4650-90e9-6dae8fa142d2",
+              "name": "content.parts[0].text",
+              "value": "={{ $json.content.parts[0].text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1abb8499-b6f6-4fa8-a96b-796f31ee8475",
+      "name": "Prepare Text Message",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1168,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "inputType": "binary",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        944,
+        256
+      ],
+      "id": "f1a77d74-23bf-4f7e-97cb-49cb34245527",
+      "name": "Transcribe a recording",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "J1Uv7PcT1MOQnmtY",
+          "name": "Google Gemini(PaLM) Api account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-120b:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1408,
+        416
+      ],
+      "id": "45192c00-84da-4870-8192-32a9635d8b6c",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "ElS1qQpr8ITTzoLu",
+          "name": "OpenRouter account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "WhatsApp Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check Message Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expense Tracker Agent": {
+      "main": [
+        [
+          {
+            "node": "Is This an Expense Entry?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is This an Expense Entry?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expense Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Expense Tracker Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is This an Expense Entry?": {
+      "main": [
+        [
+          {
+            "node": "Save Expense to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Expense Query Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Expense to Sheet": {
+      "main": [
+        [
+          {
+            "node": "Send Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expense Query Agent": {
+      "main": [
+        [
+          {
+            "node": "Send Query Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Expenses Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Expense Query Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Message Type": {
+      "main": [
+        [
+          {
+            "node": "Expense Tracker Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Audio URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Audio URL": {
+      "main": [
+        [
+          {
+            "node": "Download Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Audio": {
+      "main": [
+        [
+          {
+            "node": "Transcribe a recording",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Text Message": {
+      "main": [
+        [
+          {
+            "node": "Expense Tracker Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcribe a recording": {
+      "main": [
+        [
+          {
+            "node": "Prepare Text Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Expense Tracker Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Expense Query Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "53aada38-2e5c-48d7-a7db-a950e853bb6d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "2dfe275593397eec7b6678294b47357c91f2d22ac1d98dca4ea2beb1f9a22450"
+  },
+  "id": "Gx4f6pWk7OEZ8dyD",
+  "tags": []
+}
